@@ -1,4 +1,5 @@
 #pragma once
+#define _WIN32_WINNT 0x0A00
 
 #include "Types.h"
 #include "Macro.h"
@@ -14,8 +15,14 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#include <windows.h>
 #include <iostream>
+
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <winsock2.h>
+
+#include "Message.h"
+#pragma comment(lib, "ws2_32")
 
 /*
 	게임 엔진측에서 사용할 네트워크 관리 도구를 제작한다.

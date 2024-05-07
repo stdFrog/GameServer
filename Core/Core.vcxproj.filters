@@ -5,9 +5,6 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="소스 파일\Utility">
-      <UniqueIdentifier>{f065c9e9-722c-427f-8028-091d4bf77f82}</UniqueIdentifier>
-    </Filter>
     <Filter Include="소스 파일\Main">
       <UniqueIdentifier>{a3c4d954-8c80-4e3e-b59c-3138e6a76df0}</UniqueIdentifier>
     </Filter>
@@ -16,6 +13,9 @@
     </Filter>
     <Filter Include="소스 파일\Network">
       <UniqueIdentifier>{f4d47cc5-831c-404c-9929-5d290f33a4e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Utility">
+      <UniqueIdentifier>{f065c9e9-722c-427f-8028-091d4bf77f82}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -59,6 +59,9 @@
     </ClInclude>
     <ClInclude Include="Types.h">
       <Filter>소스 파일\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Message.h">
+      <Filter>소스 파일\Utility</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

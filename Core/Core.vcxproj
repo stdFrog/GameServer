@@ -145,6 +145,7 @@
     <ClInclude Include="CorePch.h" />
     <ClInclude Include="Global.h" />
     <ClInclude Include="Macro.h" />
+    <ClInclude Include="Message.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ThreadManager.h" />
     <ClInclude Include="TLS.h" />
