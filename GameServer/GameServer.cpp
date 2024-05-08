@@ -9,19 +9,6 @@
 #include <queue>
 #include "ThreadManager.h"
 
-/*
-	서버를 제작할 때 주의사항
-
-	처음보는 함수가 등장할 때 전체적인 구조만 파악하면 된다.
-	자세한 내용은 디버깅할 때만 필요하고 해당 함수가 어떤 부분을 담당하는지 당장 필요한 내용만 파악한다.
-
-	단계별로 살펴보자.
-	1) 새로운 소켓을 생성한다.
-	2) 소켓에 로컬 주소와 프로세스간 통신에 필요한 포트 번호를 설정한다.
-	3) 소켓을 열린 상태로 만든다.
-	4) 소켓으로 접속 요청이 오면 해당 요청으로부터 통신 전용 소켓을 만든다.
-	5) 통신 전용 함수를 호출한다. 이때 비동기 통신이 가능한 WSARecv 등을 활용한다.
-*/
 #define SERVERPORT 9000
 
 DWORD WINAPI Thread(LPVOID lpArg);
@@ -37,8 +24,7 @@ struct Session {
 
 int main()
 {
-	WSADATA wsa;
-	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { return -1; };
+	SocketTool::Initialize();
 
 	HANDLE hComplete = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
 	if (hComplete == NULL) { Message::Err_Quit(TEXT("CreateIoCompletionPort() error")); }
@@ -56,16 +42,25 @@ int main()
 	SOCKET listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (listen_sock == INVALID_SOCKET) { Message::Err_Quit(TEXT("socket() error")); }
 
-	struct sockaddr_in ServerInfo = { 0 };
-	ServerInfo.sin_addr.s_addr = htonl(INADDR_ANY);
-	ServerInfo.sin_port = htons(SERVERPORT);
-	ServerInfo.sin_family = AF_INET;
+	/* 
+		넌블로킹 소켓은 교착 상태가 생기지 않는다는 장점이 있다.
+		또, 멀티스레드 환경이 아니어도 여러 소켓에 대해 입출력 처리가 가능하다.
+		곧, 필요할 때마다 소켓과 직접 관계가 없는 다른 작업이 가능하다는 것이다.
 
-	INT Result = bind(listen_sock, (struct sockaddr*)&ServerInfo, sizeof(ServerInfo));
-	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("bind() error")); }
+		단, 예외 분기가 늘어나며, CPU의 사용률이 항상 최고치이다.
+	*/
+	ULONG ON = 1;
+	INT Result = ioctlsocket(listen_sock, FIONBIO, &ON);
+	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("ioctlsocket() error")); }
 
-	Result = listen(listen_sock, SOMAXCONN);
-	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("listen() error")); }
+	SocketTool::SetReuseAddress(listen_sock, TRUE);
+	if (SocketTool::BindAnyAddress(listen_sock, 9000) == FALSE) {
+		Message::Err_Quit(TEXT("bind() error"));
+	}
+
+	if (SocketTool::Listen(listen_sock) == FALSE) {
+		Message::Err_Quit(TEXT("listen() error"));
+	}
 
 	INT cbAddr;
 	struct sockaddr_in ClientInfo;
@@ -74,7 +69,10 @@ int main()
 	while (1) {
 		cbAddr = sizeof(ClientInfo);
 		client_sock = accept(listen_sock, (struct sockaddr*)&ClientInfo, &cbAddr);
-		if (client_sock == INVALID_SOCKET) { Message::Err_Display(TEXT("accept() error")); break; }
+		if (client_sock == INVALID_SOCKET) {
+			if (WSAGetLastError() == WSAEWOULDBLOCK) { continue; }
+			Message::Err_Display(TEXT("accept() error")); break;
+		}
 
 		char IPAddress[INET_ADDRSTRLEN];
 		inet_ntop(AF_INET, &ClientInfo.sin_addr, IPAddress, sizeof(IPAddress));
@@ -110,7 +108,7 @@ int main()
 	}
 
 	closesocket(listen_sock);
-	WSACleanup();
+	SocketTool::Clear();
 }
 
 DWORD WINAPI Thread(LPVOID lpArg) {

@@ -20,6 +20,10 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <winsock2.h>
+#include <mswsock.h>
+#include <assert.h>
+
+#include "SocketTool.h"
 
 #include "Message.h"
 #pragma comment(lib, "ws2_32")

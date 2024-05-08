@@ -1,20 +1,17 @@
 ﻿#include "pch.h"
-#include <iostream>
 
 #define SERVERPORT 9000
 
 DWORD WINAPI ReadThread(LPVOID lpArg);
 DWORD WINAPI WriteThread(LPVOID lpArg);
 SOCKET client_sock;
-BOOL bStart;
 
 char Sendbuffer[0x400] = {}, RecvBuffer[0x400] = {};
 HANDLE hWriteEvent, hReadEvent;
 
 int main()
 {
-	WSADATA wsa;
-	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { return -1; };
+	SocketTool::Initialize();
 
 	hReadEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	hWriteEvent = CreateEvent(NULL, FALSE, TRUE, NULL);
@@ -22,14 +19,25 @@ int main()
 	client_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (client_sock == INVALID_SOCKET) { Message::Err_Quit(TEXT("socket() error")); }
 
+	ULONG ON = 1;
+	INT Result = ioctlsocket(client_sock, FIONBIO, &ON);
+	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("ioctlsocket() error")); }
+
 	struct sockaddr_in ServerInfo = { 0 };
 	// ServerInfo.sin_addr.s_addr = htonl(INADDR_ANY);
 	ServerInfo.sin_port = htons(SERVERPORT);
 	ServerInfo.sin_family = AF_INET;
 	inet_pton(AF_INET, "127.0.0.1", &ServerInfo.sin_addr);
 
-	INT Result = connect(client_sock, (struct sockaddr*)&ServerInfo, sizeof(ServerInfo));
-	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("connect() error")); }
+	while (1) {
+		Result = connect(client_sock, (struct sockaddr*)&ServerInfo, sizeof(ServerInfo));
+		if (Result == SOCKET_ERROR) { 
+			if (WSAGetLastError() == WSAEWOULDBLOCK) { continue; }
+			if (WSAGetLastError() == WSAEISCONN) { break; }
+
+			// Message::Err_Quit(TEXT("connect() error"));
+		}
+	}
 
 	HANDLE hThread[2];
 	hThread[0] = CreateThread(NULL, 0, ReadThread, NULL, 0, NULL);
@@ -39,7 +47,6 @@ int main()
 		Message::Err_Quit(TEXT("작업 스레드 생성 실패"));
 	}
 
-	bStart = TRUE;
 	Result = WaitForMultipleObjects(2, hThread, FALSE, INFINITE);
 
 	Result -= WAIT_OBJECT_0;
@@ -55,7 +62,7 @@ int main()
 	Message::Trace(TEXT("접속을 종료하였습니다."));
 
 	closesocket(client_sock);
-	WSACleanup();
+	SocketTool::Clear();
 }
 
 DWORD WINAPI ReadThread(LPVOID lpArg) {
@@ -65,7 +72,10 @@ DWORD WINAPI ReadThread(LPVOID lpArg) {
 		WaitForSingleObject(hReadEvent, INFINITE);
 
 		Result = recv(client_sock, RecvBuffer, 0x400, 0);
-		if (Result == 0 || Result == SOCKET_ERROR) { Message::Err_Display(TEXT("recv error\n")); break; }
+		if (Result == 0 || Result == SOCKET_ERROR) { 
+			if (WSAGetLastError() == WSAEWOULDBLOCK) { continue; }
+			Message::Err_Display(TEXT("recv error\n")); break;
+		}
 
 		RecvBuffer[Result] = 0;
 		printf("[Recv Data] %s\r\n", RecvBuffer);
@@ -90,7 +100,10 @@ DWORD WINAPI WriteThread(LPVOID lpArg) {
 		if (strlen(Sendbuffer) == 0) { break; }
 
 		Result = send(client_sock, Sendbuffer, strlen(Sendbuffer), 0);
-		if (Result == 0 || Result == SOCKET_ERROR) { Message::Err_Display(TEXT("send error\n")); break; }
+		if (Result == 0 || Result == SOCKET_ERROR) { 
+			if (WSAGetLastError() == WSAEWOULDBLOCK) { continue; }
+			Message::Err_Display(TEXT("send error\n")); break;
+		}
 		printf("[TCP Client] %d Bytes Sending.\n", Result);
 
 		SetEvent(hReadEvent);
