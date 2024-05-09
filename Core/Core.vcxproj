@@ -144,8 +144,12 @@
   <ItemGroup>
     <ClInclude Include="CorePch.h" />
     <ClInclude Include="Global.h" />
+    <ClInclude Include="IOCPCore.h" />
+    <ClInclude Include="IOCPEvent.h" />
+    <ClInclude Include="Listener.h" />
     <ClInclude Include="Macro.h" />
     <ClInclude Include="Message.h" />
+    <ClInclude Include="NetAddress.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="SocketTool.h" />
     <ClInclude Include="ThreadManager.h" />
@@ -155,7 +159,11 @@
   <ItemGroup>
     <ClCompile Include="CorePch.cpp" />
     <ClCompile Include="Global.cpp" />
+    <ClCompile Include="IOCPCore.cpp" />
+    <ClCompile Include="IOCPEvent.cpp" />
+    <ClCompile Include="Listener.cpp" />
     <ClCompile Include="Macro.cpp" />
+    <ClCompile Include="NetAddress.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

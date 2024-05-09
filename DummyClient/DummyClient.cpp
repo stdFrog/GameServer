@@ -19,25 +19,14 @@ int main()
 	client_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (client_sock == INVALID_SOCKET) { Message::Err_Quit(TEXT("socket() error")); }
 
-	ULONG ON = 1;
-	INT Result = ioctlsocket(client_sock, FIONBIO, &ON);
-	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("ioctlsocket() error")); }
-
 	struct sockaddr_in ServerInfo = { 0 };
 	// ServerInfo.sin_addr.s_addr = htonl(INADDR_ANY);
 	ServerInfo.sin_port = htons(SERVERPORT);
 	ServerInfo.sin_family = AF_INET;
 	inet_pton(AF_INET, "127.0.0.1", &ServerInfo.sin_addr);
 
-	while (1) {
-		Result = connect(client_sock, (struct sockaddr*)&ServerInfo, sizeof(ServerInfo));
-		if (Result == SOCKET_ERROR) { 
-			if (WSAGetLastError() == WSAEWOULDBLOCK) { continue; }
-			if (WSAGetLastError() == WSAEISCONN) { break; }
-
-			// Message::Err_Quit(TEXT("connect() error"));
-		}
-	}
+	INT Result = connect(client_sock, (struct sockaddr*)&ServerInfo, sizeof(ServerInfo));
+	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("connect() error")); }
 
 	HANDLE hThread[2];
 	hThread[0] = CreateThread(NULL, 0, ReadThread, NULL, 0, NULL);

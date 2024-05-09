@@ -1,4 +1,5 @@
 #pragma once
+#include "NetAddress.h"
 
 class SocketTool
 {
@@ -9,6 +10,7 @@ public:
 
 public:
 	static BOOL Bind(SOCKET, struct sockaddr_in);
+	static BOOL Bind(SOCKET, NetAddress);
 	static BOOL BindAnyAddress(SOCKET, UINT);
 	static BOOL Listen(SOCKET, UINT Maximum = SOMAXCONN);
 	static void Close(SOCKET&);
@@ -21,7 +23,6 @@ public:
 	static BOOL SetReuseAddress(SOCKET, BOOL);
 	static BOOL SetRecvBufferSize(SOCKET, UINT);
 	static BOOL SetSendBufferSize(SOCKET, UINT);
-
 
 public:
 	static SOCKET CreateSocket();
