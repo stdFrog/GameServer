@@ -19,7 +19,7 @@ public:
 
 public:
 	virtual HANDLE GetHandle();
-	virtual void Dispatch(class IOCPEvent* NewEvent, DWORD dwTrans = 0);
+	virtual void Dispatch(IOCPEvent* NewEvent, DWORD dwTrans = 0);
 
 public:
 	Listener();

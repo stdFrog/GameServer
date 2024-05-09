@@ -1,10 +1,12 @@
 #pragma once
 
+class IOCPEvent;
+
 class IOCPObject {
 public:
-	virtual ~IOCPObject() = 0;
+	// virtual ~IOCPObject() = 0;
 	virtual HANDLE GetHandle() = 0;
-	virtual void Dispatch(class IOCPEvent* NewEvent, DWORD dwTrans = 0) = 0;
+	virtual void Dispatch(IOCPEvent* NewEvent, DWORD dwTrans = 0) = 0;
 };
 
 /*
@@ -23,7 +25,7 @@ public:
 	HANDLE GetHandle() { return _Handle; }
 
 public:
-	BOOL Register(class IOCPObject* NewObject);
+	BOOL Register(IOCPObject* NewObject);
 	BOOL Dispatch(DWORD dwMilliSeconds = INFINITE);
 	
 public:

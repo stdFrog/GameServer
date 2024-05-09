@@ -25,6 +25,7 @@ int main()
 	ServerInfo.sin_family = AF_INET;
 	inet_pton(AF_INET, "127.0.0.1", &ServerInfo.sin_addr);
 
+	/* 더미 클라이언트쪽 수정 필요 */
 	INT Result = connect(client_sock, (struct sockaddr*)&ServerInfo, sizeof(ServerInfo));
 	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("connect() error")); }
 

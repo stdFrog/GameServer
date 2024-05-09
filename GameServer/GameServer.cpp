@@ -1,16 +1,12 @@
 ﻿#include "pch.h"
-#include <iostream>
-#include <thread>
-#include <vector>
-#include <windows.h>
-#include <atomic>
-#include <mutex>
-#include <map>
-#include <queue>
 #include "ThreadManager.h"
+#include "SocketTool.h"
+#include "Listener.h"
 
+#define SERVERIP TEXT("127.0.0.1")
 #define SERVERPORT 9000
 
+/*
 DWORD WINAPI Thread(LPVOID lpArg);
 
 struct Session {
@@ -31,28 +27,77 @@ struct OVERLAPPEDEX {
 	INT Type = 0;
 
 };
+*/
 
 int main()
 {
 	SocketTool::Initialize();
 
-	HANDLE hComplete = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
-	if (hComplete == NULL) { Message::Err_Quit(TEXT("CreateIoCompletionPort() error")); }
+	/*
+		SocketTool::SetReuseAddress(listen_sock, TRUE);
+		if (SocketTool::BindAnyAddress(listen_sock, 9000) == FALSE) {
+			Message::Err_Quit(TEXT("bind() error"));
+		}
 
+		if (SocketTool::Listen(listen_sock) == FALSE) {
+			Message::Err_Quit(TEXT("listen() error"));
+		}
+
+		cbAddr = sizeof(ClientInfo);
+		client_sock = accept(listen_sock, (struct sockaddr*)&ClientInfo, &cbAddr);
+		if (client_sock == INVALID_SOCKET) {
+			// if (WSAGetLastError() == WSAEWOULDBLOCK) { continue; }
+			Message::Err_Display(TEXT("accept() error")); break;
+		}
+
+		char IPAddress[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &ClientInfo.sin_addr, IPAddress, sizeof(IPAddress));
+
+		// char Buffer[0x400];
+		// Message::ConvertToUTF16(IPAddress, &Buffer);
+		// Message::Trace(TEXT("Client Connected!\r\n[Address] : %s"), Buffer);
+		printf("Client Connected!\r\n[Address] : %s\r\n", IPAddress);
+
+		CreateIoCompletionPort((HANDLE)client_sock, hComplete, client_sock, 0);
+
+		Session* NewSession = new Session;
+		if (NewSession == NULL) { break; }
+
+		memset(&NewSession->ov, 0, sizeof(NewSession->ov));
+		NewSession->sock = client_sock;
+		NewSession->rb = NewSession->sb = 0;
+		NewSession->wsabuf.buf = NewSession->buf;
+		NewSession->wsabuf.len = 0x400;
+
+		위 일련의 과정이 아래 StartAccept 함수로 대체되었다.
+		또한, 비동기 소켓 함수 AcceptEx를 사용하기 때문에 연결 요청이 없어도 즉시 반환한다.
+
+		이때 WSA_IO_PENDING 따위의 에러 코드를 확인하여야 한다.
+	*/
+	Listener listner;
+	listner.StartAccept(NetAddress(SERVERIP, SERVERPORT));
+
+	/*
+		연결 요청 대기 함수 곧, AcceptEx까지 위에서 미리 끝냈다.
+
+		다음은 작업자 스레드를 생성하여 대기시켜 놓으면 된다.
+	*/
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
-
 	for (DWORD i = 0; i < si.dwNumberOfProcessors * 2; i++) {
-		DWORD dwThread;
-		HANDLE hThread = CreateThread(NULL, 0, Thread, hComplete, 0, &dwThread);
-		if (hThread == NULL) { Message::Err_Quit(TEXT("CreateThread() error")); }
-		CloseHandle(hThread);
+		GThreadManager->Launch([=]() {
+			while (1) {
+				/* 
+					
+				*/
+				GlobalCore.Dispatch();
+			}
+		});
 	}
 
-	SOCKET listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (listen_sock == INVALID_SOCKET) { Message::Err_Quit(TEXT("socket() error")); }
+	GThreadManager->Join();
 
-	/* 
+	/*
 		넌블로킹 소켓은 교착 상태가 생기지 않는다는 장점이 있다.
 		또, 멀티스레드 환경이 아니어도 여러 소켓에 대해 입출력 처리가 가능하다.
 		곧, 필요할 때마다 소켓과 직접 관계가 없는 다른 작업이 가능하다는 것이다.
@@ -81,52 +126,12 @@ int main()
 		Completion Port 모델에서는 블로킹과 넌블로킹의 구분보다도, 대기 함수와 운영체제의 동작에 더 신경써야 한다.
 	*/
 
-	/*ULONG ON = 1;
-	INT Result = ioctlsocket(listen_sock, FIONBIO, &ON);
-	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("ioctlsocket() error")); }*/
-
-	SocketTool::SetReuseAddress(listen_sock, TRUE);
-	if (SocketTool::BindAnyAddress(listen_sock, 9000) == FALSE) {
-		Message::Err_Quit(TEXT("bind() error"));
-	}
-
-	if (SocketTool::Listen(listen_sock) == FALSE) {
-		Message::Err_Quit(TEXT("listen() error"));
-	}
-
-	INT cbAddr, Result;
-	struct sockaddr_in ClientInfo;
-	SOCKET client_sock;
-
+	/*
 	while (1) {
-		cbAddr = sizeof(ClientInfo);
-		client_sock = accept(listen_sock, (struct sockaddr*)&ClientInfo, &cbAddr);
-		if (client_sock == INVALID_SOCKET) {
-			// if (WSAGetLastError() == WSAEWOULDBLOCK) { continue; }
-			Message::Err_Display(TEXT("accept() error")); break;
-		}
-
-		char IPAddress[INET_ADDRSTRLEN];
-		inet_ntop(AF_INET, &ClientInfo.sin_addr, IPAddress, sizeof(IPAddress));
 		
-		// char Buffer[0x400];
-		// Message::ConvertToUTF16(IPAddress, &Buffer);
-		// Message::Trace(TEXT("Client Connected!\r\n[Address] : %s"), Buffer);
-		printf("Client Connected!\r\n[Address] : %s\r\n", IPAddress);
 
 		// TODO
 		{
-			CreateIoCompletionPort((HANDLE)client_sock, hComplete, client_sock, 0);
-
-			Session* NewSession = new Session;
-			if (NewSession == NULL) { break; }
-
-			memset(&NewSession->ov, 0, sizeof(NewSession->ov));
-			NewSession->sock = client_sock;
-			NewSession->rb = NewSession->sb = 0;
-			NewSession->wsabuf.buf = NewSession->buf;
-			NewSession->wsabuf.len = 0x400;
-
 			DWORD recvbytes, flags;
 			flags = 0;
 			Result = WSARecv(client_sock, &NewSession->wsabuf, 1, &recvbytes, &flags, &NewSession->ov, NULL);
@@ -138,11 +143,12 @@ int main()
 			}
 		}
 	}
+	*/
 
-	closesocket(listen_sock);
 	SocketTool::Clear();
 }
 
+/*
 DWORD WINAPI Thread(LPVOID lpArg) {
 	BOOL Result;
 
@@ -152,7 +158,7 @@ DWORD WINAPI Thread(LPVOID lpArg) {
 		SOCKET client_sock;
 		Session* NewSession;
 
-		/* 유효한 포인터가 아닐 수 있으므로 점검 필요 | 스마트 포인터 사용해도 좋음 */
+		// 유효한 포인터가 아닐 수 있으므로 점검 필요 | 스마트 포인터 사용해도 좋음
 		Result = GetQueuedCompletionStatus(
 			hComplete,
 			&dwTrans,
@@ -220,3 +226,4 @@ DWORD WINAPI Thread(LPVOID lpArg) {
 
 	return 0;
 }
+*/
