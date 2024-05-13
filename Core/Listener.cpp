@@ -40,11 +40,11 @@ BOOL Listener::StartAccept(NetAddress NewAddress) {
 		패킷에 추가될 부가 정보 전달(포인터 응용) - vtable 주의
 		여기서 IOCPCore의 Register 함수를 호출한다.
 	*/
-	if (!GlobalCore.Register(this)) { return FALSE; }
-	if (!SocketTool::SetReuseAddress(_Socket, TRUE)) { return FALSE; }
-	if (!SocketTool::SetLinger(_Socket, 0, 0)) { return FALSE; }
-	if (!SocketTool::Bind(_Socket, NewAddress)) { return FALSE; }
-	if (!SocketTool::Listen(_Socket)) { return FALSE; }
+	if (GlobalCore.Register(shared_from_this()) == FALSE) { return FALSE; }
+	if (SocketTool::SetReuseAddress(_Socket, TRUE) == FALSE) { return FALSE; }
+	if (SocketTool::SetLinger(_Socket, 0, 0) == FALSE) { return FALSE; }
+	if (SocketTool::Bind(_Socket, NewAddress) == FALSE) { return FALSE; }
+	if (SocketTool::Listen(_Socket) == FALSE) { return FALSE; }
 
 	/* 
 		구조와 함수가 달라져서 약간 헤맸다.
@@ -58,6 +58,7 @@ BOOL Listener::StartAccept(NetAddress NewAddress) {
 	for (int i = 0; i < Count; i++) {
 		/* 기존의 동기 함수(accept)가 아닌 비동기 함수(AcceptEx)를 사용한다. */
 		IOCPEvent* NewEvent = new IOCPEvent(EventType::ACCEPT);
+		NewEvent->_Owner = shared_from_this();
 		_AcceptEvents.push_back(NewEvent);
 		RegisterAccept(NewEvent);
 	}
@@ -68,7 +69,8 @@ BOOL Listener::StartAccept(NetAddress NewAddress) {
 
 void Listener::RegisterAccept(IOCPEvent* Target) {
 	/* 세션의 생성자에서 WSASocket 함수 호출, 유효 소켓을 가진다. */
-	Session* NewSession = new Session();
+	// Session* NewSession = new Session;
+	std::shared_ptr<Session> NewSession = std::make_shared<Session>();
 
 	Target->Initialize();
 	Target->_Session = NewSession;					// 소켓 정보
@@ -84,7 +86,7 @@ void Listener::RegisterAccept(IOCPEvent* Target) {
 		&dwRecvBytes,								// 입출력 작업이 끝날 때 실제 송수신된 데이터의 크기를 반환
 		(LPOVERLAPPED)Target						// 비동기 소켓 함수 내부적으로 사용할 정보 구조체
 		) == FALSE) {
-
+		
 		const int Error = WSAGetLastError();
 		if (Error != WSA_IO_PENDING) {
 			/* 비동기 소켓 함수이므로 보류 상태가 아닐 때에는 완전한 실패이므로 다시 등록해야 한다. */
@@ -94,7 +96,7 @@ void Listener::RegisterAccept(IOCPEvent* Target) {
 }
 
 void Listener::ProcessAccept(IOCPEvent* Target) {
-	Session* TargetSession = Target->_Session;
+	std::shared_ptr<Session> TargetSession = Target->_Session;
 
 	/* 
 		AcceptEx가 변환한 통신 전용 소켓은 그 구조가 일반 소켓과 다르다.

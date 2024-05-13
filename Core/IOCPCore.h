@@ -2,7 +2,7 @@
 
 class IOCPEvent;
 
-class IOCPObject {
+class IOCPObject : public std::enable_shared_from_this<IOCPObject> {
 public:
 	// virtual ~IOCPObject() = 0;
 	virtual HANDLE GetHandle() = 0;
@@ -25,7 +25,7 @@ public:
 	HANDLE GetHandle() { return _Handle; }
 
 public:
-	BOOL Register(IOCPObject* NewObject);
+	BOOL Register(std::shared_ptr<IOCPObject> NewObject);
 	BOOL Dispatch(DWORD dwMilliSeconds = INFINITE);
 	
 public:

@@ -17,7 +17,8 @@ enum class EventType : UCHAR {
 class IOCPEvent : public OVERLAPPED {
 public:
 	EventType _Type;
-	Session* _Session = NULL;
+	std::shared_ptr<Session> _Session = NULL;
+	std::shared_ptr<IOCPObject> _Owner = NULL;
 
 	IOCPEvent(EventType);
 	void Initialize();
