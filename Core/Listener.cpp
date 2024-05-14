@@ -3,6 +3,7 @@
 #include "SocketTool.h"
 #include "IOCPEvent.h"
 #include "Session.h"
+#include "Service.h"
 
 Listener::Listener() {
 	
@@ -26,11 +27,16 @@ void Listener::CloseSocket() {
 
 /* 프로세싱 전, 해야될 일련의 과정을 이 함수에서 처리하면 된다. */
 void Listener::Dispatch(IOCPEvent* NewEvent, DWORD dwTrans) {
+	/* Core에서 비동기 접속이 완료되면 아래 구문을 실행한다. */
 	assert(NewEvent->_Type == EventType::ACCEPT);
 	ProcessAccept(NewEvent);
 }
 
-BOOL Listener::StartAccept(NetAddress NewAddress) {
+BOOL Listener::StartAccept(std::shared_ptr<ServerService> NewService) {
+	/* 서비스 클래스 추가 후 NetAddress 대신 서비스 객체 전달 */
+	_Service = NewService;
+	if (_Service == NULL) { return FALSE; }
+
 	/* 윈도우 전용 비동기 소켓 생성(WSASocket) */
 	_Socket = SocketTool::CreateSocket();
 
@@ -40,10 +46,11 @@ BOOL Listener::StartAccept(NetAddress NewAddress) {
 		패킷에 추가될 부가 정보 전달(포인터 응용) - vtable 주의
 		여기서 IOCPCore의 Register 함수를 호출한다.
 	*/
-	if (GlobalCore.Register(shared_from_this()) == FALSE) { return FALSE; }
+	if (_Service->GetMainCore()->Register(shared_from_this()) == FALSE) { return FALSE; }
 	if (SocketTool::SetReuseAddress(_Socket, TRUE) == FALSE) { return FALSE; }
 	if (SocketTool::SetLinger(_Socket, 0, 0) == FALSE) { return FALSE; }
-	if (SocketTool::Bind(_Socket, NewAddress) == FALSE) { return FALSE; }
+	//if (SocketTool::Bind(_Socket, NewAddress) == FALSE) { return FALSE; }
+	if (SocketTool::Bind(_Socket, NewService->GetNetAddress()) == FALSE) { return FALSE; }
 	if (SocketTool::Listen(_Socket) == FALSE) { return FALSE; }
 
 	/* 
@@ -63,7 +70,6 @@ BOOL Listener::StartAccept(NetAddress NewAddress) {
 		RegisterAccept(NewEvent);
 	}
 
-	// return FALSE;
 	return TRUE;
 }
 
@@ -133,10 +139,30 @@ void Listener::ProcessAccept(IOCPEvent* Target) {
 
 	std::cout << "Client Connected!" << std::endl << "[IP Address] : " << IPAddress << std::endl;
 
-	
 	TargetSession->SetNetAddress(NetAddress(SocketInfo));
 	// TargetSession->ProcessConnect();
 
-	/* 다음 동작을 위해 다시 등록한다 */
+	/* 
+		위의 ProcessConnect 함수가 완성되지 않은 상태라 구조가 어색해 보일 수 있어 약간의 주석을 남긴다.
+
+		접속 요청 이벤트를 등록하는 분기 처리를 살펴보자.
+		
+		대부분 함수가 실패할 때, 즉 읽을 수 없는 메모리이거나 이전 함수가 완료되지 않았을 때
+		또는 새로 등록할 때에 RegisterAccept를 호출한다.
+
+		이는 세션을 생성/재생성하거나 교체하는 과정이며, 일반적인 상황이다.
+		그런데, 함수의 끝에서 접속이 성공한 이후에 다시 AcceptEx 함수를 호출한다.
+
+		이는 이벤트를 재사용하는 구조로 작성되어 있어 그런 것인데,
+		문제는 현재까지 생성된 세션에 대하여 아무런 처리를 하지 않고 있다는 것이다.
+
+		때문에 그 구조가 어색해 보일 수 있다.
+
+		이후 작성할 Session의 ProcessConnect에서 세션과 서비스를 연결하는 처리를 하므로,
+		아직 그 구조가 온전하지 못하다는 것에 유의하자.
+
+		서비스 클래스가 세션을 관리하는 주체가 되므로 추후 서비스 클래스가 완성되면
+		전체 구조를 분석해보는 것으로 한다.
+	*/
 	RegisterAccept(Target);
 }

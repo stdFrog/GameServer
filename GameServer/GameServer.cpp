@@ -2,6 +2,8 @@
 #include "ThreadManager.h"
 #include "SocketTool.h"
 #include "Listener.h"
+#include "Service.h"
+#include "Session.h"
 
 #define SERVERIP TEXT("127.0.0.1")
 #define SERVERPORT 9000
@@ -28,6 +30,15 @@ struct OVERLAPPEDEX {
 
 };
 */
+
+class GameSession : public Session {
+public:
+	/* 
+		소켓 정보외에 추가하고 싶은 정보를 기입하면 된다.
+		
+		서버측에서 관리할 정보와 협업시 필요한 공용 정보 따위가 이에 해당된다.
+	*/
+};
 
 int main()
 {
@@ -74,8 +85,21 @@ int main()
 
 		이때 WSA_IO_PENDING 따위의 에러 코드를 확인하여야 한다.
 	*/
-	Listener listner;
-	listner.StartAccept(NetAddress(SERVERIP, SERVERPORT));
+	/*Listener listner;
+	listner.StartAccept(NetAddress(SERVERIP, SERVERPORT));*/
+
+	/* 서비스 클래스 제작 후 */
+	std::shared_ptr<ServerService> NewService = std::make_shared<ServerService>(
+		NetAddress(SERVERIP, SERVERPORT),
+		std::make_shared<IOCPCore>(),
+		[]() { return std::make_shared<GameSession>(); },
+		100
+	);
+
+	/* 
+		엔진측에서 모든 내부적 처리를 끝내므로 서버측에선 서비스 생성 후 Start 함수만 호출하면 된다.
+	*/
+	assert(NewService->Start());
 
 	/*
 		연결 요청 대기 함수 곧, AcceptEx까지 위에서 미리 끝냈다.
@@ -87,10 +111,7 @@ int main()
 	for (DWORD i = 0; i < si.dwNumberOfProcessors * 2; i++) {
 		GThreadManager->Launch([=]() {
 			while (1) {
-				/* 
-					
-				*/
-				GlobalCore.Dispatch();
+				NewService->GetMainCore()->Dispatch();
 			}
 		});
 	}

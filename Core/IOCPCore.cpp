@@ -3,7 +3,7 @@
 #include "IOCPEvent.h"
 
 /* 용도에 따라 여러개 운용해도 된다. */
-IOCPCore GlobalCore;
+// IOCPCore GlobalCore;
 
 IOCPCore::IOCPCore() {
 	_Handle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
@@ -41,7 +41,12 @@ BOOL IOCPCore::Dispatch(DWORD dwMilliSeconds) {
 		서버 메인의 선두에서 관리 대상이 등록되며, AcceptEx가 모두 완료되었을 때
 		곧, 비동기 함수가 완료되었을 때 운영체제가 프로그램에게 이 사실을 알리는 것으로 보인다.
 
-		AcceptEx를 완전히 분석해봐야 상세한 구조를 파악할 수 있을 것이다.
+		AcceptEx가 호출된 이후 곧바로 리턴하면서 대기 상태에 빠지지 않으며,
+		비동기 접속이 성공적으로 이루어지면 확장 함수(AcceptEx) 호출시 전달한 중첩 구조체가
+		운영체제에 의해 내부적으로 사용된 뒤 GetQueuedCompletionStatus의 네 번째 인수로 다시 전달된다.
+
+		이후 Dispatch 함수를 호출하는데 Listener와 Session이 그 대상이며,
+		Session의 Dispatch 함수는 호환을 위해 간단한 래퍼 함수로 사용된다.
 	*/
 	if (GetQueuedCompletionStatus(
 		_Handle,

@@ -1,6 +1,7 @@
 #pragma once
 
 class Session;
+class IOCPObject;
 
 enum class EventType : UCHAR {
 	CONNECT,

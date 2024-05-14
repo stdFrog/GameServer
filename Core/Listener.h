@@ -3,6 +3,7 @@
 #include "NetAddress.h"
 
 class IOCPEvent;
+class ServerService;
 
 class Listener : public IOCPObject
 {
@@ -12,9 +13,12 @@ class Listener : public IOCPObject
 protected:
 	SOCKET _Socket = INVALID_SOCKET;
 	std::vector<IOCPEvent*> _AcceptEvents;
+	std::shared_ptr<ServerService> _Service;
 
 public:
-	BOOL StartAccept(NetAddress NewAddress);
+	// BOOL StartAccept(NetAddress NewAddress);
+	BOOL StartAccept(std::shared_ptr<ServerService> NewService);
+
 	void CloseSocket();
 
 public:

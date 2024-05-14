@@ -33,4 +33,4 @@ public:
 	~IOCPCore();
 };
 
-extern IOCPCore GlobalCore;
+// extern IOCPCore GlobalCore;
