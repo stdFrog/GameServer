@@ -25,7 +25,7 @@ using SessionFactory = std::function<std::shared_ptr<Session>(void)>;
 	서버측에서 제공하는 서비스 역시 크게 다르지 않아 보인다.
 */
 /*
-	여기서 서비스는 세션을 관리하는 주체가 된다.
+	여기서 서비스는 리스너와 세션을 관리하는 주체가 된다.
 
 	엔진 관점에서 볼 때 서비스는 접속자, 즉 세션으로부터 원격지에 대한 정보
 	곧, 서버 또는 클라이언트의 정보를 얻어와 서로간 통신할 수 있도록 설계해야 한다.
@@ -71,7 +71,7 @@ public:
 public:
 	std::shared_ptr<Session> CreateSession();
 	void AppendSession(std::shared_ptr<Session> NewSession);
-	void RemoveSession(std::shared_ptr<Session> Target);
+	void ReleaseSession(std::shared_ptr<Session> Target);
 
 public:
 	INT GetSessionCount() { return _SessionCount; }

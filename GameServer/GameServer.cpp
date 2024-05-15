@@ -38,6 +38,19 @@ public:
 		
 		서버측에서 관리할 정보와 협업시 필요한 공용 정보 따위가 이에 해당된다.
 	*/
+	~GameSession() {
+		std::cout << "~GameSession()" << std::endl;
+	}
+
+	virtual INT OnRecv(PBYTE Buffer, INT Length) {
+		std::cout << "OnRecv Length = " << Length << std::endl;
+		Send(Buffer, Length);
+		return Length;
+	}
+
+	virtual void OnSend(INT Length) {
+		std::cout << "OnSend Length = " << Length << std::endl;
+	}
 };
 
 int main()
@@ -98,6 +111,8 @@ int main()
 
 	/* 
 		엔진측에서 모든 내부적 처리를 끝내므로 서버측에선 서비스 생성 후 Start 함수만 호출하면 된다.
+
+		아래 Start 함수가 Listener 생성 및 RegisterAccept까지의 과정을 한번에 처리한다.
 	*/
 	assert(NewService->Start());
 

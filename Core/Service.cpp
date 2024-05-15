@@ -20,9 +20,12 @@ void Service::Close() {
 	// TODO : DB 등의 종료 처리
 }
 
+/* 세션과 리스너 두 파생 클래스는 자신을 관리하는 주체가 누구인지 기억해야 한다. */
 std::shared_ptr<Session> Service::CreateSession() {
 	std::shared_ptr<Session> NewSession = _InitSession();
+	NewSession->SetService(shared_from_this());
 
+	/* 세션 생성 후 감시 대상으로 등록한다. */
 	if (_MainCore->Register(NewSession) == FALSE) {
 		return NULL;
 	}
@@ -36,7 +39,7 @@ void Service::AppendSession(std::shared_ptr<Session> NewSession) {
 	_Sessions.insert(NewSession);
 }
 
-void Service::RemoveSession(std::shared_ptr<Session> Target) {
+void Service::ReleaseSession(std::shared_ptr<Session> Target) {
 	std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
 	assert(_Sessions.erase(Target) != 0);
 	_SessionCount--;

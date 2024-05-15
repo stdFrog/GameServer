@@ -76,17 +76,19 @@ BOOL Listener::StartAccept(std::shared_ptr<ServerService> NewService) {
 void Listener::RegisterAccept(IOCPEvent* Target) {
 	/* 세션의 생성자에서 WSASocket 함수 호출, 유효 소켓을 가진다. */
 	// Session* NewSession = new Session;
-	std::shared_ptr<Session> NewSession = std::make_shared<Session>();
+	// std::shared_ptr<Session> NewSession = std::make_shared<Session>();
+
+	std::shared_ptr<Session> NewSession = _Service->CreateSession();
 
 	Target->Initialize();
-	Target->_Session = NewSession;					// 소켓 정보
+	Target->_Session = NewSession;					// 소켓 정보(원격지 정보)
 	
 	DWORD dwRecvBytes = 0;
 	if (SocketTool::AcceptEx(
 		_Socket,									// 수신 대기 전용 소켓
 		NewSession->GetSocket(),					// 통신 전용 소켓(변환)
 		NewSession->_RecvBuffer,					// 수신 버퍼(데이터 및 고유 정보 전달)
-		0,											// 특이값(0)을 전달하면 연결(accept) 즉시 리턴
+		0,											// 특이값(0)을 전달하면 연결(accept) 즉시 리턴하여 성공했음을 알린다
 		sizeof(struct sockaddr_in) + 16,			// 고정값
 		sizeof(struct sockaddr_in) + 16,			// 고정값
 		&dwRecvBytes,								// 입출력 작업이 끝날 때 실제 송수신된 데이터의 크기를 반환
@@ -140,7 +142,7 @@ void Listener::ProcessAccept(IOCPEvent* Target) {
 	std::cout << "Client Connected!" << std::endl << "[IP Address] : " << IPAddress << std::endl;
 
 	TargetSession->SetNetAddress(NetAddress(SocketInfo));
-	// TargetSession->ProcessConnect();
+	TargetSession->ProcessConnect();
 
 	/* 
 		위의 ProcessConnect 함수가 완성되지 않은 상태라 구조가 어색해 보일 수 있어 약간의 주석을 남긴다.
