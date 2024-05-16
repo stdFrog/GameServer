@@ -17,6 +17,10 @@ enum class EventType : UCHAR {
 */
 class IOCPEvent : public OVERLAPPED {
 public:
+	/* 보내야 하는 버퍼가 여러개 일 수 있으므로 벡터로 관리한다. */
+	std::vector<std::shared_ptr<SendBuffer>> _SendBuffers;
+
+public:
 	EventType _Type;
 	std::vector<BYTE> _Buffer;
 	std::shared_ptr<Session> _Session = NULL;

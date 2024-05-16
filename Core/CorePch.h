@@ -24,6 +24,7 @@
 #include <assert.h>
 
 #include "SocketTool.h"
+#include "SendBuffer.h"
 
 #include "Message.h"
 #pragma comment(lib, "ws2_32")

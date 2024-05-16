@@ -87,7 +87,7 @@ void Listener::RegisterAccept(IOCPEvent* Target) {
 	if (SocketTool::AcceptEx(
 		_Socket,									// 수신 대기 전용 소켓
 		NewSession->GetSocket(),					// 통신 전용 소켓(변환)
-		NewSession->_RecvBuffer,					// 수신 버퍼(데이터 및 고유 정보 전달)
+		NewSession->_RecvBuffer.WritePosition(),	// 수신 버퍼(데이터 및 고유 정보 전달)
 		0,											// 특이값(0)을 전달하면 연결(accept) 즉시 리턴하여 성공했음을 알린다
 		sizeof(struct sockaddr_in) + 16,			// 고정값
 		sizeof(struct sockaddr_in) + 16,			// 고정값
