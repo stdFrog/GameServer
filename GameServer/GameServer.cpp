@@ -4,6 +4,7 @@
 #include "Listener.h"
 #include "Service.h"
 #include "Session.h"
+#include "GameSession.h"
 
 #define SERVERIP TEXT("127.0.0.1")
 #define SERVERPORT 9000
@@ -31,13 +32,12 @@ struct OVERLAPPEDEX {
 };
 */
 
+/*
 class GameSession : public Session {
 public:
-	/* 
 		소켓 정보외에 추가하고 싶은 정보를 기입하면 된다.
 		
 		서버측에서 관리할 정보와 협업시 필요한 공용 정보 따위가 이에 해당된다.
-	*/
 	~GameSession() {
 		std::cout << "~GameSession()" << std::endl;
 	}
@@ -52,6 +52,7 @@ public:
 		std::cout << "OnSend Length = " << Length << std::endl;
 	}
 };
+*/
 
 int main()
 {
@@ -123,7 +124,7 @@ int main()
 	*/
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
-	for (DWORD i = 0; i < si.dwNumberOfProcessors * 2; i++) {
+	for (DWORD i = 0; i < 5/*si.dwNumberOfProcessors * 2*/; i++) {
 		GThreadManager->Launch([=]() {
 			while (1) {
 				NewService->GetMainCore()->Dispatch();

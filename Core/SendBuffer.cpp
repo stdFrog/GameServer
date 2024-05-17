@@ -2,7 +2,7 @@
 #include "SendBuffer.h"
 
 SendBuffer::SendBuffer(INT BufferSize) {
-
+	_Buffer.resize(BufferSize);
 }
 
 SendBuffer::~SendBuffer() {

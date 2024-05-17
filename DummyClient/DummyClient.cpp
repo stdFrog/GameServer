@@ -1,103 +1,72 @@
 ﻿#include "pch.h"
+#include <iostream>
+#include <chrono>
+#include "ThreadManager.h"
+#include "Service.h"
+#include "Session.h"
 
 #define SERVERPORT 9000
+using std::this_thread::sleep_for;
 
-DWORD WINAPI ReadThread(LPVOID lpArg);
-DWORD WINAPI WriteThread(LPVOID lpArg);
-SOCKET client_sock;
+char SendData[] = "Hello World";
 
-char Sendbuffer[0x400] = {}, RecvBuffer[0x400] = {};
-HANDLE hWriteEvent, hReadEvent;
+class ServerSession : public Session {
+public:
+	~ServerSession() {
+		std::cout << "~ServerSession" << std::endl;
+	}
+
+	virtual void OnConnected() {
+		std::cout << "Connected To Server" << std::endl;
+
+		std::shared_ptr<SendBuffer> NewBuffer = std::make_shared<SendBuffer>(0x1000);
+		NewBuffer->CopyData(SendData, sizeof(SendData));
+		Send(NewBuffer);
+	}
+
+	virtual INT OnRecv(PBYTE Buffer, INT Length) {
+		std::cout << "OnRecv Length = " << Length << std::endl;
+
+		sleep_for(std::chrono::milliseconds(100));
+
+		std::shared_ptr<SendBuffer> NewBuffer = std::make_shared<SendBuffer>(0x1000);
+		NewBuffer->CopyData(SendData, sizeof(SendData));
+		Send(NewBuffer);
+
+		return Length;
+	}
+
+	virtual void OnSend(INT Length) {
+		std::cout << "OnSend Length = " << Length << std::endl;
+	}
+
+	virtual void OnDisconnected() {
+		std::cout << "Disconnected" << std::endl;
+	}
+};
 
 int main()
 {
 	SocketTool::Initialize();
 
-	hReadEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-	hWriteEvent = CreateEvent(NULL, FALSE, TRUE, NULL);
+	sleep_for(std::chrono::milliseconds(2000));
 
-	client_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (client_sock == INVALID_SOCKET) { Message::Err_Quit(TEXT("socket() error")); }
+	std::shared_ptr<ClientService> Service = std::make_shared<ClientService>(
+		NetAddress(L"127.0.0.1", SERVERPORT),
+		std::make_shared<IOCPCore>(),
+		[]() {return std::make_shared<ServerSession>(); },
+		5
+	);
 
-	struct sockaddr_in ServerInfo = { 0 };
-	// ServerInfo.sin_addr.s_addr = htonl(INADDR_ANY);
-	ServerInfo.sin_port = htons(SERVERPORT);
-	ServerInfo.sin_family = AF_INET;
-	inet_pton(AF_INET, "127.0.0.1", &ServerInfo.sin_addr);
+	assert(Service->Start());
 
-	/* 더미 클라이언트쪽 수정 필요 */
-	INT Result = connect(client_sock, (struct sockaddr*)&ServerInfo, sizeof(ServerInfo));
-	if (Result == SOCKET_ERROR) { Message::Err_Quit(TEXT("connect() error")); }
-
-	HANDLE hThread[2];
-	hThread[0] = CreateThread(NULL, 0, ReadThread, NULL, 0, NULL);
-	hThread[1] = CreateThread(NULL, 0, WriteThread, NULL, 0, NULL);
-
-	if (hThread[0] == NULL || hThread[1] == NULL) {
-		Message::Err_Quit(TEXT("작업 스레드 생성 실패"));
+	for (INT i = 0; i < 5; i++){
+		GThreadManager->Launch([=]() {
+			while (1) {
+				Service->GetMainCore()->Dispatch();
+			}
+		});
 	}
-
-	Result = WaitForMultipleObjects(2, hThread, FALSE, INFINITE);
-
-	Result -= WAIT_OBJECT_0;
-	if (Result == 0) {
-		TerminateThread(hThread[1], 1);
-	}
-	else {
-		TerminateThread(hThread[0], 1);
-	}
-
-	// 둘 중 하나라도 종료되면 접속 끊긴 상태
-	CloseHandle(hThread[0]); CloseHandle(hThread[1]);
-	Message::Trace(TEXT("접속을 종료하였습니다."));
-
-	closesocket(client_sock);
+	GThreadManager->Join();
 	SocketTool::Clear();
-}
-
-DWORD WINAPI ReadThread(LPVOID lpArg) {
-	INT Result;
-	
-	while (1) {
-		WaitForSingleObject(hReadEvent, INFINITE);
-
-		Result = recv(client_sock, RecvBuffer, 0x400, 0);
-		if (Result == 0 || Result == SOCKET_ERROR) { 
-			if (WSAGetLastError() == WSAEWOULDBLOCK) { continue; }
-			Message::Err_Display(TEXT("recv error\n")); break;
-		}
-
-		RecvBuffer[Result] = 0;
-		printf("[Recv Data] %s\r\n", RecvBuffer);
-
-		SetEvent(hWriteEvent);
-	}
-
-	return 0;
-}
-
-DWORD WINAPI WriteThread(LPVOID lpArg) {
-	INT Result;
-
-	while (1) {
-		WaitForSingleObject(hWriteEvent, INFINITE);
-
-		printf("[Input] : ");
-		if (fgets(Sendbuffer, 0x400 + 1, stdin) == NULL) { break; }
-
-		INT length = strlen(Sendbuffer);
-		if (Sendbuffer[length - 1] == '\n') { Sendbuffer[length - 1] = 0; }
-		if (strlen(Sendbuffer) == 0) { break; }
-
-		Result = send(client_sock, Sendbuffer, strlen(Sendbuffer), 0);
-		if (Result == 0 || Result == SOCKET_ERROR) { 
-			if (WSAGetLastError() == WSAEWOULDBLOCK) { continue; }
-			Message::Err_Display(TEXT("send error\n")); break;
-		}
-		printf("[TCP Client] %d Bytes Sending.\n", Result);
-
-		SetEvent(hReadEvent);
-	}
-
-	return 0;
 }

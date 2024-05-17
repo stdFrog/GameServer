@@ -25,7 +25,7 @@ public:
 	HANDLE GetHandle() { return _Handle; }
 
 public:
-	BOOL Register(std::shared_ptr<IOCPObject> NewObject);
+	bool Register(std::shared_ptr<IOCPObject> NewObject);
 	BOOL Dispatch(DWORD dwMilliSeconds = INFINITE);
 	
 public:

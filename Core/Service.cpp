@@ -63,6 +63,16 @@ ClientService::~ClientService() {
 }
 
 BOOL ClientService::Start() {
+	if (IsPossible() == FALSE) { return FALSE; }
+
+	const INT SessionCount = GetMaxSessionCount();
+	for (INT i = 0; i < SessionCount; i++) {
+		std::shared_ptr<Session> NewSession = CreateSession();
+		if (NewSession->Connect() == FALSE) {
+			return FALSE;
+		}
+	}
+
 	return TRUE;
 }
 

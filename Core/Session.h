@@ -61,7 +61,8 @@ private:
 
 private:
 	void ProcessRecv(DWORD dwRecvBytes);
-	void ProcessSend(IOCPEvent* SendEvent, DWORD dwSendBytes);
+	// void ProcessSend(IOCPEvent* SendEvent, DWORD dwSendBytes);
+	void ProcessSend(DWORD dwSendBytes);
 	void ProcessConnect();
 	void ProcessDisconnect();
 

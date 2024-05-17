@@ -14,7 +14,7 @@ IOCPCore::~IOCPCore() {
 	CloseHandle(_Handle);
 }
 
-BOOL IOCPCore::Register(std::shared_ptr<IOCPObject> NewObject) {
+bool IOCPCore::Register(std::shared_ptr<IOCPObject> NewObject) {
 	/* 관찰 대상 등록 단계 */
 	// return (BOOL)CreateIoCompletionPort(NewObject->GetHandle(), _Handle, (ULONG_PTR)NewObject, 0);
 	
@@ -24,7 +24,7 @@ BOOL IOCPCore::Register(std::shared_ptr<IOCPObject> NewObject) {
 
 		대신, Dispatch 함수에서 변화가 생긴다.
 	*/
-	return (BOOL)CreateIoCompletionPort(NewObject->GetHandle(), _Handle, 0, 0);
+	return CreateIoCompletionPort(NewObject->GetHandle(), _Handle, 0, 0);
 }
 
 /* 리스너 또는 세션에 대한 Dispatch 함수를 호출한다. */

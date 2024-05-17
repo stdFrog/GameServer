@@ -29,7 +29,7 @@ void Session::Dispatch(IOCPEvent* NewEvent, DWORD dwTrans) {
 		ProcessDisconnect();
 		break;
 	case EventType::SEND:
-		ProcessSend(NewEvent, dwTrans);
+		ProcessSend(/*NewEvent,*/ dwTrans);
 		break;
 	case EventType::RECV:
 		ProcessRecv(dwTrans);
@@ -136,8 +136,6 @@ void Session::RegisterSend(/*IOCPEvent* SendEvent*/) {
 	_SendEvent.Initialize();
 	_SendEvent._Owner = shared_from_this();
 
-	_SendEvent._SendBuffers.clear();
-
 	/* 
 		WSASend, WSARecv는 Scatter-Gather 입출력을 지원하므로
 		처리해야할 데이터 크기를 합산하고 이벤트가 관리하는 SendBuffer 벡터에 밀어넣는다.
@@ -171,7 +169,8 @@ void Session::RegisterSend(/*IOCPEvent* SendEvent*/) {
 		if (Error != WSA_IO_PENDING) {
 			HandleError(Error);
 			_SendEvent._Owner = NULL;
-			// delete SendEvent;
+			_SendEvent._SendBuffers.clear();
+			_SendRegistered.store(FALSE);
 		}
 	}
 }
@@ -284,9 +283,10 @@ void Session::ProcessRecv(DWORD dwRecvBytes) {
 	즉, 모든 데이터의 입출력 작업이 끝났을 때에만 완료 통지가 발생하므로 완료 시점이 일치하는가에 대한
 	여부는 의심할 필요 없다.
 */
-void Session::ProcessSend(IOCPEvent* SendEvent, DWORD dwSendBytes) {
-	SendEvent->_Owner = NULL;
-	delete SendEvent;
+void Session::ProcessSend(/*IOCPEvent* SendEvent,*/ DWORD dwSendBytes) {
+	_SendEvent._Owner = NULL;
+	_SendEvent._SendBuffers.clear();
+	// delete SendEvent;
 
 	if (dwSendBytes == 0) {
 		Disconnect(L"SendBytes is zero");
@@ -294,6 +294,34 @@ void Session::ProcessSend(IOCPEvent* SendEvent, DWORD dwSendBytes) {
 	}
 
 	OnSend(dwSendBytes);
+
+	/* 
+		데이터를 보낸 후 큐가 비어있다면 상태 변수를 초기화 한다.
+		단, 도중에 작업이 추가된 경우 다시 등록한다. 
+
+		std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
+		if (_Queue.empty()) {
+			_SendRegistered.store(FALSE);
+		}
+		else {
+			RegisterSend();
+		}
+	*/
+	
+	/* 역시나 뮤텍스가 말썽이라 위 구문이 아래와 같이 변했다. */
+	BOOL RegisterSend = FALSE;
+	std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
+	if (_Queue.empty()) {
+		_SendRegistered.store(FALSE);
+	}
+	else {
+		RegisterSend = TRUE;
+	}
+	WriteGuard.~lock_guard();
+
+	if (RegisterSend) {
+		this->RegisterSend();
+	}
 }
 
 void Session::ProcessConnect() {

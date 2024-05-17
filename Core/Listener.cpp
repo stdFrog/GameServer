@@ -35,23 +35,36 @@ void Listener::Dispatch(IOCPEvent* NewEvent, DWORD dwTrans) {
 BOOL Listener::StartAccept(std::shared_ptr<ServerService> NewService) {
 	/* 서비스 클래스 추가 후 NetAddress 대신 서비스 객체 전달 */
 	_Service = NewService;
-	if (_Service == NULL) { return FALSE; }
+	if (_Service == NULL) {
+		return FALSE;
+	}
 
 	/* 윈도우 전용 비동기 소켓 생성(WSASocket) */
 	_Socket = SocketTool::CreateSocket();
-
-	if (_Socket == INVALID_SOCKET) { return FALSE; }
+	if (_Socket == INVALID_SOCKET) {
+		return FALSE;
+	}
 
 	/* 
 		패킷에 추가될 부가 정보 전달(포인터 응용) - vtable 주의
 		여기서 IOCPCore의 Register 함수를 호출한다.
 	*/
-	if (_Service->GetMainCore()->Register(shared_from_this()) == FALSE) { return FALSE; }
-	if (SocketTool::SetReuseAddress(_Socket, TRUE) == FALSE) { return FALSE; }
-	if (SocketTool::SetLinger(_Socket, 0, 0) == FALSE) { return FALSE; }
+	if (_Service->GetMainCore()->Register(shared_from_this()) == FALSE) {
+		return FALSE;
+	}
+	if (SocketTool::SetReuseAddress(_Socket, TRUE) == FALSE) { 
+		return FALSE;
+	}
+	if (SocketTool::SetLinger(_Socket, 0, 0) == FALSE) { 
+		return FALSE;
+	}
 	//if (SocketTool::Bind(_Socket, NewAddress) == FALSE) { return FALSE; }
-	if (SocketTool::Bind(_Socket, NewService->GetNetAddress()) == FALSE) { return FALSE; }
-	if (SocketTool::Listen(_Socket) == FALSE) { return FALSE; }
+	if (SocketTool::Bind(_Socket, NewService->GetNetAddress()) == FALSE) {
+		return FALSE;
+	}
+	if (SocketTool::Listen(_Socket) == FALSE) { 
+		return FALSE;
+	}
 
 	/* 
 		구조와 함수가 달라져서 약간 헤맸다.
