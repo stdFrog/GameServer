@@ -59,7 +59,13 @@ int main()
 	);
 
 	assert(Service->Start());
-
+	/*
+		금일, 디버깅 결과 : 
+		(1). 서버측 오류 해결 -> bind 함수 에러코드 분기 수정
+		(2). 더미 클라이언트 unlock of unowned mutex 현상 발생 -> 스레드 매니저 클래스의 Launch 호출로부터
+		뮤텍스 unlock이 호출되지 않는 현상 발견 추후 수정 필요
+		
+	*/
 	for (INT i = 0; i < 5; i++){
 		GThreadManager->Launch([=]() {
 			while (1) {

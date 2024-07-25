@@ -23,11 +23,11 @@ void SocketTool::Clear() {
 }
 
 BOOL SocketTool::Bind(SOCKET Socket, struct sockaddr_in Info) {
-	return bind(Socket, (struct sockaddr*)&Info, sizeof(Info));
+	return (BOOL)(SOCKET_ERROR != ::bind(Socket, (struct sockaddr*)&Info, sizeof(Info)));
 }
 
 BOOL SocketTool::Bind(SOCKET Socket, NetAddress NewAddress) {
-	return bind(Socket, (struct sockaddr*)&NewAddress.GetSocketInfo(), sizeof(struct sockaddr));
+	return (BOOL)(SOCKET_ERROR != ::bind(Socket, (struct sockaddr*)&NewAddress.GetSocketInfo(), sizeof(struct sockaddr)));
 }
 
 BOOL SocketTool::Listen(SOCKET Socket, UINT Maximum) {
@@ -40,7 +40,7 @@ BOOL SocketTool::BindAnyAddress(SOCKET Socket, UINT Port) {
 	Local.sin_addr.s_addr = htonl(INADDR_ANY);
 	Local.sin_port = htons(Port);
 
-	return bind(Socket, (struct sockaddr*)&Local, sizeof(Local)) != SOCKET_ERROR;
+	return (BOOL)(SOCKET_ERROR != bind(Socket, (struct sockaddr*)&Local, sizeof(Local)));
 }
 
 void SocketTool::Close(SOCKET& Socket) {

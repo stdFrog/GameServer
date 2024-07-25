@@ -18,7 +18,6 @@ protected:
 public:
 	// BOOL StartAccept(NetAddress NewAddress);
 	BOOL StartAccept(std::shared_ptr<ServerService> NewService);
-
 	void CloseSocket();
 
 public:

@@ -2,7 +2,7 @@
 #include "NetAddress.h"
 
 NetAddress::NetAddress() {
-
+	_SocketInfo = { 0, };
 }
 
 NetAddress::NetAddress(struct sockaddr_in Info)  : _SocketInfo(Info){

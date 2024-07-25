@@ -35,7 +35,7 @@ void Listener::Dispatch(IOCPEvent* NewEvent, DWORD dwTrans) {
 BOOL Listener::StartAccept(std::shared_ptr<ServerService> NewService) {
 	/* 서비스 클래스 추가 후 NetAddress 대신 서비스 객체 전달 */
 	_Service = NewService;
-	if (_Service == NULL) {
+	if (_Service == nullptr) {
 		return FALSE;
 	}
 
@@ -58,10 +58,18 @@ BOOL Listener::StartAccept(std::shared_ptr<ServerService> NewService) {
 	if (SocketTool::SetLinger(_Socket, 0, 0) == FALSE) { 
 		return FALSE;
 	}
-	//if (SocketTool::Bind(_Socket, NewAddress) == FALSE) { return FALSE; }
+
+	NetAddress NewAddress = NewService->GetNetAddress();
+	if (SocketTool::Bind(_Socket, NewAddress) == FALSE) {
+		return FALSE;
+	}
+	
+	/*
 	if (SocketTool::Bind(_Socket, NewService->GetNetAddress()) == FALSE) {
 		return FALSE;
 	}
+	*/
+
 	if (SocketTool::Listen(_Socket) == FALSE) { 
 		return FALSE;
 	}
