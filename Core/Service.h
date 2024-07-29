@@ -46,7 +46,8 @@ using SessionFactory = std::function<std::shared_ptr<Session>(void)>;
 class Service : public std::enable_shared_from_this<Service>
 {
 protected:
-	std::mutex _Locks[100];					// USE_LOCK;
+	// std::mutex _Locks[100];					// USE_LOCK;
+	std::mutex _Locks[1];
 
 protected:
 	ServiceType _Type;

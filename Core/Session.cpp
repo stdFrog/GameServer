@@ -58,11 +58,13 @@ void Session::Disconnect(const WCHAR* Reason) {
 void Session::Send(std::shared_ptr<SendBuffer> Buffer) {
 	BOOL Registered = FALSE;
 	
-	std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
-	_Queue.push(Buffer);
-	Registered = _SendRegistered.exchange(TRUE) == FALSE;
-	WriteGuard.~lock_guard();
-	
+	{
+		std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
+		_Queue.push(Buffer);
+		Registered = _SendRegistered.exchange(TRUE) == FALSE;
+		// WriteGuard.~lock_guard();
+	}
+
 	if (Registered) {
 		RegisterSend();
 	}
@@ -114,7 +116,7 @@ void Session::RegisterRecv() {
 	DWORD dwBytes, Flags;
 	dwBytes = Flags = 0;
 
-	if (WSARecv(_Socket, &wsabuf, 1, &dwBytes, &Flags, (LPOVERLAPPED)&_RecvEvent, NULL)) {
+	if (WSARecv(_Socket, &wsabuf, 1, &dwBytes, &Flags, (LPOVERLAPPED)&_RecvEvent, NULL) == SOCKET_ERROR) {
 		INT Error = WSAGetLastError();
 
 		if (Error != WSA_IO_PENDING) {
@@ -140,16 +142,18 @@ void Session::RegisterSend(/*IOCPEvent* SendEvent*/) {
 		WSASend, WSARecv는 Scatter-Gather 입출력을 지원하므로
 		처리해야할 데이터 크기를 합산하고 이벤트가 관리하는 SendBuffer 벡터에 밀어넣는다.
 	*/
-	std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
-	INT WriteSize = 0;
-	while (_Queue.empty() == FALSE) {
-		std::shared_ptr<SendBuffer> Buffer = _Queue.front();
-		WriteSize += Buffer->WriteSize();
-		_Queue.pop();
-		_SendEvent._SendBuffers.push_back(Buffer);
+	{
+		std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
+		INT WriteSize = 0;
+		while (_Queue.empty() == FALSE) {
+			std::shared_ptr<SendBuffer> Buffer = _Queue.front();
+			WriteSize += Buffer->WriteSize();
+			_Queue.pop();
+			_SendEvent._SendBuffers.push_back(Buffer);
+		}
+		// WriteGuard.~lock_guard();
 	}
-	WriteGuard.~lock_guard();
-	
+
 	std::vector<WSABUF> Bufs;
 	Bufs.reserve(_SendEvent._SendBuffers.size());
 	for (std::shared_ptr<SendBuffer> SendBuffer : _SendEvent._SendBuffers) {
@@ -163,7 +167,7 @@ void Session::RegisterSend(/*IOCPEvent* SendEvent*/) {
 		한번에 보낸다.
 	*/
 	DWORD dwBytes = 0;
-	if (WSASend(_Socket, /* &wsabuf */Bufs.data(), /* 1 */Bufs.size(), &dwBytes, 0, (LPOVERLAPPED)&_SendEvent, NULL)) {
+	if (WSASend(_Socket, /* &wsabuf */Bufs.data(), /* 1 */Bufs.size(), &dwBytes, 0, (LPOVERLAPPED)&_SendEvent, NULL) == SOCKET_ERROR) {
 		INT Error = WSAGetLastError();
 		
 		if (Error != WSA_IO_PENDING) {
@@ -186,12 +190,12 @@ BOOL Session::RegisterConnect() {
 
 	DWORD dwBytes = 0;
 	struct sockaddr_in SockInfo = GetService()->GetNetAddress().GetSocketInfo();
-	if (SocketTool::ConnectEx(_Socket, reinterpret_cast<struct sockaddr*>(&SockInfo), sizeof(SockInfo), NULL, 0, &dwBytes, &_ConnectEvent)) {
+	if (SocketTool::ConnectEx(_Socket, reinterpret_cast<struct sockaddr*>(&SockInfo), sizeof(SockInfo), NULL, 0, &dwBytes, &_ConnectEvent) == FALSE) {
 		INT Error = WSAGetLastError();
 
 		if (Error != WSA_IO_PENDING) {
 			_ConnectEvent._Owner = NULL;
-			return FALSE;
+			return FALSE;	
 		}
 	}
 
@@ -202,7 +206,7 @@ BOOL Session::RegisterDisconnect() {
 	_DisconnectEvent.Initialize();
 	_DisconnectEvent._Owner = shared_from_this();
 
-	if (SocketTool::DisconnectEx(_Socket, &_DisconnectEvent, TF_REUSE_SOCKET, 0)) {
+	if (SocketTool::DisconnectEx(_Socket, &_DisconnectEvent, TF_REUSE_SOCKET, 0) == FALSE) {
 		INT Error = WSAGetLastError();
 
 		if (Error != WSA_IO_PENDING) {
@@ -310,15 +314,17 @@ void Session::ProcessSend(/*IOCPEvent* SendEvent,*/ DWORD dwSendBytes) {
 	
 	/* 역시나 뮤텍스가 말썽이라 위 구문이 아래와 같이 변했다. */
 	BOOL RegisterSend = FALSE;
-	std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
-	if (_Queue.empty()) {
-		_SendRegistered.store(FALSE);
+	{
+		std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
+		if (_Queue.empty()) {
+			_SendRegistered.store(FALSE);
+		}
+		else {
+			RegisterSend = TRUE;
+		}
+		// WriteGuard.~lock_guard();
 	}
-	else {
-		RegisterSend = TRUE;
-	}
-	WriteGuard.~lock_guard();
-
+	
 	if (RegisterSend) {
 		this->RegisterSend();
 	}
