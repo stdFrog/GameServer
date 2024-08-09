@@ -19,9 +19,7 @@ bool IOCPCore::Register(std::shared_ptr<IOCPObject> NewObject) {
 	// return (BOOL)CreateIoCompletionPort(NewObject->GetHandle(), _Handle, (ULONG_PTR)NewObject, 0);
 	
 	/* 
-		서비스와 스마트 포인터를 추가한 이후부턴 
-		관리 대상이었던 리스너와 세션의 기반 클래스 곧, IOCPObject를 부가 정보로 전달하지 않는다.
-
+		이벤트라는 집합에서 세션과 IOCPObject을 관리하므로 부가 정보를 전달하지 않는다.
 		대신, Dispatch 함수에서 변화가 생긴다.
 	*/
 	return CreateIoCompletionPort(NewObject->GetHandle(), _Handle, 0, 0);
@@ -52,10 +50,22 @@ BOOL IOCPCore::Dispatch(DWORD dwMilliSeconds) {
 		_Handle,
 		&dwTrans,
 		(PULONG_PTR)&Info,
-		(LPOVERLAPPED*)&NewEvent,
+		(LPOVERLAPPED*)&NewEvent,			// Listener의 accept 이벤트 이후 session의 Recv이벤트를 기다린다.
 		dwMilliSeconds
 	)) {
-		NewObject = NewEvent->_Owner;
+		/* 
+			클라이언트측에서 서버에 대한 요청이 있을 때 해당 스레드가 깨어나 필요한 처리를 진행하는데,
+			WSARecv나 WSASend 따위의 비동기 함수를 이용하여 패킷을 보낸 직후 접속을 끊는다고 가정해보자.
+			
+			완료 패킷에 대한 처리를 진행할 때 클라이언트가 접속을 종료한 상태이므로
+			유효한 대상이 아니며, 이 부분에서 잘못된 메모리에 대한 접근이나 데드락이 발생할 수 있다.
+			
+			따라서, Dispatch를 호출하기 이전과 직후에 해당 작업을 처리하는 루틴에서 이에 따른 분기 처리가 필수적이다.
+			
+			현재 프로젝트에선 일반 포인터가 아닌 스마트 포인터를 사용하고 있으므로 이러한 분기 처리가 필요치 않다.
+			만약 일반 포인터만으로 서버 프로그램을 만들어야 한다면 난이도가 수직 상승할 것이다.
+		*/
+		NewObject = NewEvent->_Owner;				// 1. Listener, 2.Session
 		NewObject->Dispatch(NewEvent, dwTrans);
 	}
 	else {

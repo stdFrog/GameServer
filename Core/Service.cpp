@@ -24,8 +24,12 @@ void Service::Close() {
 std::shared_ptr<Session> Service::CreateSession() {
 	std::shared_ptr<Session> NewSession = _InitSession();
 	NewSession->SetService(shared_from_this());
+	/* 세션이 자신을 생성한 주체의 포인터를 갖고 있게끔 만든다. */
 
-	/* 세션 생성 후 감시 대상으로 등록한다. */
+	/* 
+		세션 생성 후 감시 대상으로 등록한다.
+		이후 소켓 통신 함수를 사용하면 작업 스레드가 깨어나 필요한 처리를 한다.
+	*/
 	if (_MainCore->Register(NewSession) == FALSE) {
 		return NULL;
 	}

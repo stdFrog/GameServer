@@ -11,7 +11,7 @@ class Listener : public IOCPObject
 	void ProcessAccept(IOCPEvent* Target);
 
 protected:
-	SOCKET _Socket = INVALID_SOCKET;
+	SOCKET _Socket = INVALID_SOCKET;				// 연결 대기 소켓
 	std::vector<IOCPEvent*> _AcceptEvents;
 	std::shared_ptr<ServerService> _Service;
 

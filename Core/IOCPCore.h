@@ -25,6 +25,7 @@ public:
 	HANDLE GetHandle() { return _Handle; }
 
 public:
+	/* 세션, 리스너 등 */
 	bool Register(std::shared_ptr<IOCPObject> NewObject);
 	BOOL Dispatch(DWORD dwMilliSeconds = INFINITE);
 	

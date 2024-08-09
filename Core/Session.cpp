@@ -7,6 +7,9 @@ Session::Session() : BUFFER_SIZE(0x10000), _RecvBuffer(BUFFER_SIZE) {
 	/* 
 		AcceptEx의 두 번째 인수로 전달할 소켓 핸들
 		곧, 통신 전용 소켓이 된다.
+
+		MS사의 AcceptEx 함수는 Socket 타입을 리턴하지 않는다.
+		소켓 생성후 이를 전달하면 내부적으로 결합하는 것으로 보인다. 
 	*/
 	_Socket = SocketTool::CreateSocket();
 }
@@ -55,6 +58,7 @@ void Session::Disconnect(const WCHAR* Reason) {
 	RegisterDisconnect();
 }
 
+/* 클라이언트 측에서 호출 */
 void Session::Send(std::shared_ptr<SendBuffer> Buffer) {
 	BOOL Registered = FALSE;
 	
@@ -116,6 +120,10 @@ void Session::RegisterRecv() {
 	DWORD dwBytes, Flags;
 	dwBytes = Flags = 0;
 
+	/* 
+		서버측 입장에서 통신을 위한 최초의 Recv 콜까지 마친 상태가 된다. 
+		이후 작업자 스레드(IOCPCore)가 
+	*/
 	if (WSARecv(_Socket, &wsabuf, 1, &dwBytes, &Flags, (LPOVERLAPPED)&_RecvEvent, NULL) == SOCKET_ERROR) {
 		INT Error = WSAGetLastError();
 
@@ -179,6 +187,10 @@ void Session::RegisterSend(/*IOCPEvent* SendEvent*/) {
 	}
 }
 
+/*
+	클라이언트 입장에서 접속 요청을 위해 사용되는 함수이다.
+	잘 사용되지 않으나 서버가 외부 서버에 연결되어야 할 때 사용된다.
+*/
 BOOL Session::RegisterConnect() {
 	if (IsConnected()) { return FALSE; }
 	if (GetService()->GetType() != ServiceType::CLIENT) { return FALSE; }
@@ -247,6 +259,7 @@ BOOL Session::RegisterDisconnect() {
 	정리하면, CompletionPort 모델은 넌블로킹 모드를 사용하지 않으며 중첩 모드를 사용한다.
 */
 void Session::ProcessRecv(DWORD dwRecvBytes) {
+	/* 두 번째 GetQueuedCompletionStatus 호출부터 즉, 접속 세션이 있을 때 실행됨 */
 	_RecvEvent._Owner = NULL;
 
 	if (dwRecvBytes == 0) {
@@ -255,7 +268,8 @@ void Session::ProcessRecv(DWORD dwRecvBytes) {
 	}
 
 	if (_RecvBuffer.OnWrite(dwRecvBytes) == FALSE) {
-		Disconnect(L"OnWrite Failed");
+		/* 실패 이유 로그 작성 -> 프로젝트 합친 후 필요시 추가 */
+		Disconnect(L"OnWrite Error");
 		return;
 	}
 
@@ -263,12 +277,12 @@ void Session::ProcessRecv(DWORD dwRecvBytes) {
 	INT ProcessLength = OnRecv(_RecvBuffer.ReadPosition(), Usaged);
 
 	if (ProcessLength < 0 || Usaged < ProcessLength) {
-		Disconnect(L"OnRecv Failed");
+		Disconnect(L"OnRecv Error");
 		return;
 	}
 
 	if (_RecvBuffer.OnRead(ProcessLength) == FALSE) {
-		Disconnect(L"OnRead Failed");
+		Disconnect(L"OnRead Error");
 		return;
 	}
 
@@ -284,8 +298,8 @@ void Session::ProcessRecv(DWORD dwRecvBytes) {
 	WSASend는 비동기 함수로, 내부 코드를 실행한 후 곧바로 리턴하며 입출력 작업이 모두 끝나면
 	운영체제의 도움을 받아 완료 통지를 보낸다.
 
-	즉, 모든 데이터의 입출력 작업이 끝났을 때에만 완료 통지가 발생하므로 완료 시점이 일치하는가에 대한
-	여부는 의심할 필요 없다.
+	즉, 모든 데이터의 입출력 작업이 끝났을 때에만 완료 통지가 발생하므로 완료 시점이 일치하는가에 대한 것은
+	의심할 필요 없다.
 */
 void Session::ProcessSend(/*IOCPEvent* SendEvent,*/ DWORD dwSendBytes) {
 	_SendEvent._Owner = NULL;
@@ -300,8 +314,15 @@ void Session::ProcessSend(/*IOCPEvent* SendEvent,*/ DWORD dwSendBytes) {
 	OnSend(dwSendBytes);
 
 	/* 
-		데이터를 보낸 후 큐가 비어있다면 상태 변수를 초기화 한다.
-		단, 도중에 작업이 추가된 경우 다시 등록한다. 
+		아래 구문이 추가된 이유는 단순하다.
+		구조를 단순화 하다보니 처음 SendEvent가 발생했을 때에만 데이터를 처리한다.
+
+		이는 곧, 이후에 들어온 SendEvent에 대해선 처리가 되지 않는다는 것이며
+		서버 시작 이후 패킷이 항상 슬러지마냥 쌓인다는 것이다.
+	*/
+	/*
+		따라서, 아래 구문을 추가하여 비어있는 상태일 때와 아닐 때를
+		적절히 분기하여 남은 데이터를 꾸준히 처리해야 한다.
 
 		std::lock_guard<std::mutex> WriteGuard(_Locks[0]);
 		if (_Queue.empty()) {
@@ -337,15 +358,7 @@ void Session::ProcessConnect() {
 	GetService()->AppendSession(GetSession());
 	OnConnected();
 
-	/* 
-		원격지의 접속(AcceptEx)이 성공하면 연결 이벤트를 초기화하여 사용 가능한 상태로 만든다.
-
-		이후 상태값(_Connected)을 조정하고 관리 주체(Service)에 접속한 유저(Session)의 정보를 등록한다.
-		연결 직후엔 아무런 교점이 없으므로 수신 이벤트 곧, _RecvEvent를 초기화 하고
-		WSARecv 함수를 호출하여 수신 대기 상태로 만든다.
-
-		이후부터 발생하는 모든 네트워크 이벤트는 세션의 Dispatch 함수로 이어진다.
-	*/
+	/* 이 시점에서 이미 모든 연결과 통신 준비가 끝난 상태이며 Recv이벤트를 등록한다. */
 	RegisterRecv();
 }
 

@@ -27,7 +27,7 @@ void Listener::CloseSocket() {
 
 /* 프로세싱 전, 해야될 일련의 과정을 이 함수에서 처리하면 된다. */
 void Listener::Dispatch(IOCPEvent* NewEvent, DWORD dwTrans) {
-	/* Core에서 비동기 접속이 완료되면 아래 구문을 실행한다. */
+	/* Core에서 수신 대기 소켓에 대한 비동기 입출력이 완료되면 아래 구문을 실행한다. */
 	assert(NewEvent->_Type == EventType::ACCEPT);
 	ProcessAccept(NewEvent);
 }
@@ -48,6 +48,7 @@ BOOL Listener::StartAccept(std::shared_ptr<ServerService> NewService) {
 	/* 
 		패킷에 추가될 부가 정보 전달(포인터 응용) - vtable 주의
 		여기서 IOCPCore의 Register 함수를 호출한다.
+		곧, Listener가 가지는 Socket을 입출력 완료 포트에 등록한다.
 	*/
 	if (_Service->GetMainCore()->Register(shared_from_this()) == FALSE) {
 		return FALSE;
@@ -84,9 +85,12 @@ BOOL Listener::StartAccept(std::shared_ptr<ServerService> NewService) {
 	*/
 	const int Count = 1;
 	for (int i = 0; i < Count; i++) {
-		/* 기존의 동기 함수(accept)가 아닌 비동기 함수(AcceptEx)를 사용한다. */
 		IOCPEvent* NewEvent = new IOCPEvent(EventType::ACCEPT);
 		NewEvent->_Owner = shared_from_this();
+		/* 
+			이벤트가 발생한 이후 처리되기까지 Listener객체가 유효해야 하므로
+			이벤트를 소유한 대상이 누구인지 관리하여 Reference Count를 유지한다.
+		*/
 		_AcceptEvents.push_back(NewEvent);
 		RegisterAccept(NewEvent);
 	}
@@ -99,12 +103,33 @@ void Listener::RegisterAccept(IOCPEvent* Target) {
 	// Session* NewSession = new Session;
 	// std::shared_ptr<Session> NewSession = std::make_shared<Session>();
 
+	/* 
+		이 호출만으로 세션을 만든 후 세션을 만든 주체인 서비스를 설정하고,
+		입출력 완료 포트의 감시 대상으로 등록한다.
+	*/
 	std::shared_ptr<Session> NewSession = _Service->CreateSession();
 
+	/* 
+		이때 이벤트를 소유한 주체는 Listener 객체이고 이 객체는 입출력 완료 포트에 감시 대상으로 등록되어 있다.
+		또한, 위 CreateSession에서 세션의 생성과 감시 대상으로 등록하는 작업까지 수행한다.
+	*/
 	Target->Initialize();
 	Target->_Session = NewSession;					// 소켓 정보(원격지 정보)
 	
 	DWORD dwRecvBytes = 0;
+	/* 
+		소켓 변환 전에 미리 Session이 가지는 Socket을 입출력 완료 포트에 등록하며,
+		AcceptEx 함수가 완료(비동기)되면 완료 패킷이 전달된다.
+
+		사실상 listen 함수에서 당장 처리되지 않는 연결에 대하여 최댓값(SOMAXCONN)을 전달했기 때문에
+		AcceptEx가 아닌 accept 함수를 호출해도 별 문제는 없을 것을 보인다.
+
+		당장 처리되지 않는 연결 곧, 동기 함수인 accept가 반응이 늦어져 처리하지 못한 클라이언트 접속에 대하여
+		연결 큐(Connection Queue)에 그 접속 정보를 저장하므로 잘 짜여진 서버라면 크게 문제되지 않는다.
+
+		다만, 복잡한 분기 처리 등을 다수 생략할 수 있고, 운영체제가 맡아 알아서 처리해주는 일련의 과정이
+		있으므로 편의성에선 굉장한 차이를 보인다.
+	*/
 	if (SocketTool::AcceptEx(
 		_Socket,									// 수신 대기 전용 소켓
 		NewSession->GetSocket(),					// 통신 전용 소켓(변환)
@@ -125,6 +150,17 @@ void Listener::RegisterAccept(IOCPEvent* Target) {
 }
 
 void Listener::ProcessAccept(IOCPEvent* Target) {
+	/* 
+		IOCPCore에서 GetQueuedCompletionStatus 함수를 사용하여 대기 상태로 있다가
+		AcceptEx 함수가 실행되고 연결 소켓이 생성되어 Session에 등록되면 부가 정보(Event)를 전달받아
+		Event의 소유자인 Listener의 Dispatch 함수를 호출한다.
+
+		해당 함수 호출시 이미 Session의 소켓은 통신을 위한 준비가 끝난 상태이며,
+		연결 정보를 불러와 접속자의 IP및 PORT번호를 조사한다.
+
+		이에 대한 설명이 일절 없어서 굉장히 오랜 시간 분석했는데,
+		CompletionPort 모델과 AcceptEx 함수의 동작을 제대로 모르는 상태에선 전체 코드를 분석할 수 없다.
+	*/
 	std::shared_ptr<Session> TargetSession = Target->_Session;
 
 	/* 
@@ -148,7 +184,7 @@ void Listener::ProcessAccept(IOCPEvent* Target) {
 	int lSockSize = sizeof(SocketInfo);
 
 	if (getpeername(
-		TargetSession->GetSocket(),
+		TargetSession->GetSocket(),				// Session 소켓 곧, 통신 전용 소켓
 		(struct sockaddr*)&SocketInfo,
 		&lSockSize) == SOCKET_ERROR) {
 
@@ -163,29 +199,14 @@ void Listener::ProcessAccept(IOCPEvent* Target) {
 	std::cout << "Client Connected!" << std::endl << "[IP Address] : " << IPAddress << std::endl;
 
 	TargetSession->SetNetAddress(NetAddress(SocketInfo));
-	TargetSession->ProcessConnect();
+	TargetSession->ProcessConnect(); // -> 연결 이벤트(확인용) 등록후 관리 세션 추가 -> RegisterRecv까지 호출
 
-	/* 
-		위의 ProcessConnect 함수가 완성되지 않은 상태라 구조가 어색해 보일 수 있어 약간의 주석을 남긴다.
+	/*
+		앞선 호출(ProcessConnect)에서 수신 이벤트까지 등록하면 모든 처리가 끝난다.
+		RegisterAccept에서 생성한 하나의 세션에 대하여 Recv 이벤트를 활성했고
+		이로써 해당 세션은 서버와 통신만 반복해서 주고받으면 된다.
 
-		접속 요청 이벤트를 등록하는 분기 처리를 살펴보자.
-		
-		대부분 함수가 실패할 때, 즉 읽을 수 없는 메모리이거나 이전 함수가 완료되지 않았을 때
-		또는 새로 등록할 때에 RegisterAccept를 호출한다.
-
-		이는 세션을 생성/재생성하거나 교체하는 과정이며, 일반적인 상황이다.
-		그런데, 함수의 끝에서 접속이 성공한 이후에 다시 AcceptEx 함수를 호출한다.
-
-		이는 이벤트를 재사용하는 구조로 작성되어 있어 그런 것인데,
-		문제는 현재까지 생성된 세션에 대하여 아무런 처리를 하지 않고 있다는 것이다.
-
-		때문에 그 구조가 어색해 보일 수 있다.
-
-		이후 작성할 Session의 ProcessConnect에서 세션과 서비스를 연결하는 처리를 하므로,
-		아직 그 구조가 온전하지 못하다는 것에 유의하자.
-
-		서비스 클래스가 세션을 관리하는 주체가 되므로 추후 서비스 클래스가 완성되면
-		전체 구조를 분석해보는 것으로 한다.
+		아래 RegisterAccept는 다시 새로운 접속자를 받아들이기 위해 꼭 필요한 호출이다.
 	*/
 	RegisterAccept(Target);
 }
