@@ -5,9 +5,13 @@
 #include "Service.h"
 #include "Session.h"
 #include "GameSession.h"
+#include "ServerPacketHandler.h"
+#include "GameSessionManager.h"
 
 #define SERVERIP TEXT("127.0.0.1")
 #define SERVERPORT 9000
+
+using std::this_thread::sleep_for;
 
 /*
 DWORD WINAPI Thread(LPVOID lpArg);
@@ -130,6 +134,14 @@ int main()
 				NewService->GetMainCore()->Dispatch();
 			}
 		});
+	}
+
+	while (true) {
+		std::vector<BufferData> Buffers{ BufferData{ 100, 1.5f }, BufferData{ 200, 2.3f }, BufferData{ 300, 0.7f } };
+		std::shared_ptr<SendBuffer> SendBuf = ServerPacketHandler::Make_S_TEST(1001, 100, 10, Buffers);
+		GSessionManager.Broadcast(SendBuf);
+
+		sleep_for(std::chrono::milliseconds(250));
 	}
 
 	GThreadManager->Join();

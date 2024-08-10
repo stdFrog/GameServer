@@ -1,7 +1,7 @@
 #pragma once
 #include "Session.h"
 
-class GameSession : public Session
+class GameSession : public PacketSession //public Session
 {
 public:
 	~GameSession() {
@@ -10,7 +10,8 @@ public:
 
 	virtual void OnConnected();
 	virtual void OnDisconnected();
-	virtual INT OnRecv(PBYTE Buffer, INT Length);
+	// virtual INT OnRecv(PBYTE Buffer, INT Length);
+	virtual void OnRecvPacket(PBYTE Buffer, INT Length);
 	virtual void OnSend(INT Length);
 };
 

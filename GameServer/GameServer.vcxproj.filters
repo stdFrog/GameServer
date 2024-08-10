@@ -19,6 +19,9 @@
     <ClCompile Include="GameSessionManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="ServerPacketHandler.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -28,6 +31,9 @@
       <Filter>소스 파일</Filter>
     </ClInclude>
     <ClInclude Include="GameSessionManager.h">
+      <Filter>소스 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="ServerPacketHandler.h">
       <Filter>소스 파일</Filter>
     </ClInclude>
   </ItemGroup>

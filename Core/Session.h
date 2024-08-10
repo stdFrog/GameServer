@@ -150,6 +150,12 @@ protected:
 		정확히는 클래스 간의 상속에 관한 명시적 표현을 위해 사용되며 아래 사용된 sealed는
 		해당 클래스로부터 파생된 클래스가 OnRecv 인터페이스를 사용하지 못하도록 제한한다(오버라이딩 포함).
 	*/
-	virtual int OnRecv(BYTE* Buffer, int Length) sealed;
+	virtual INT OnRecv(BYTE* Buffer, int Length) sealed;
 	virtual void OnRecvPacket(BYTE* Buffer, int Length) = 0;
+	/* 
+		OnRecv 함수에선 전달된 패킷의 헤더만을 확인한다.
+		간단한 분기로, 패킷의 크기가 4바이트 보다 작으면 무시한다.
+
+		문제가 없다면 OnRecvPacket 함수를 호출하여 필요한 처리를 한다.		
+	*/
 };

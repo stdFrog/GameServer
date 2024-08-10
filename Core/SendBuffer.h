@@ -25,6 +25,7 @@ public:
 
 public:
 	void CopyData(void* Data, INT Length);
+	void Close(UINT WriteSize);
 
 public:
 	SendBuffer(INT BufferSize);

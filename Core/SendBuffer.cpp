@@ -14,3 +14,8 @@ void SendBuffer::CopyData(void* Data, int Length) {
 	memcpy(_Buffer.data(), Data, Length);
 	_WriteSize = Length;
 }
+
+void SendBuffer::Close(UINT WriteSize){
+	/* 데이터 크기 조절을 위해 필요 */
+	_WriteSize = WriteSize;
+}

@@ -382,3 +382,33 @@ void Session::HandleError(INT ErrorCode) {
 		break;
 	}
 }
+
+PacketSession::PacketSession() {
+
+}
+
+PacketSession::~PacketSession() {
+	
+}
+
+/* 
+	4바이트 크기의 헤더를 먼저 보낸다.
+	다만, 상/하위 2바이트씩 구역을 나누어 두 개의 데이터를 보낸다.
+*/
+INT PacketSession::OnRecv(BYTE* Buffer, int Length){
+	int ProcessLength = 0;
+	
+	while (1) {
+		int DataSize = Length - ProcessLength;
+		if (DataSize < sizeof(PacketHeader)) { break; }
+
+		PacketHeader Header = *(reinterpret_cast<PacketHeader*>(&Buffer[ProcessLength]));
+		if (DataSize < Header.Size) { break; }
+
+		OnRecvPacket(&Buffer[ProcessLength], Header.Size);
+		
+		ProcessLength += Header.Size;
+	}
+
+	return ProcessLength;
+}

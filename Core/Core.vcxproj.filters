@@ -64,6 +64,12 @@
     <ClCompile Include="SendBuffer.cpp">
       <Filter>소스 파일\Network</Filter>
     </ClCompile>
+    <ClCompile Include="BufferReader.cpp">
+      <Filter>소스 파일\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="BufferWriter.cpp">
+      <Filter>소스 파일\Utility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -116,6 +122,12 @@
     </ClInclude>
     <ClInclude Include="SendBuffer.h">
       <Filter>소스 파일\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferReader.h">
+      <Filter>소스 파일\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferWriter.h">
+      <Filter>소스 파일\Utility</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

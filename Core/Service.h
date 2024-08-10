@@ -110,6 +110,7 @@ public:
 };
 
 class ServerService : public Service {
+	/* 순환 참조 문제를 해결하려면 Listener나 Service측에서 weak_ptr를 사용해야 한다. */
 	std::shared_ptr<Listener> _Listener = NULL;
 
 public:

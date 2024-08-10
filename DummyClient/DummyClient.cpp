@@ -4,13 +4,14 @@
 #include "ThreadManager.h"
 #include "Service.h"
 #include "Session.h"
+#include "ClientPacketHandler.h"
 
 #define SERVERPORT 9000
 using std::this_thread::sleep_for;
 
 char SendData[] = "Hello World";
 
-class ServerSession : public Session {
+class ServerSession : public PacketSession {
 public:
 	~ServerSession() {
 		std::cout << "~ServerSession" << std::endl;
@@ -19,21 +20,25 @@ public:
 	virtual void OnConnected() {
 		std::cout << "Connected To Server" << std::endl;
 
-		std::shared_ptr<SendBuffer> NewBuffer = std::make_shared<SendBuffer>(0x1000);
+		/*std::shared_ptr<SendBuffer> NewBuffer = std::make_shared<SendBuffer>(0x1000);
 		NewBuffer->CopyData(SendData, sizeof(SendData));
-		Send(NewBuffer);
+		Send(NewBuffer);*/
 	}
 
-	virtual INT OnRecv(PBYTE Buffer, INT Length) {
+	// virtual INT OnRecv(PBYTE Buffer, INT Length) {
+	virtual void OnRecvPacket(PBYTE Buffer, INT Length) {
 		std::cout << "OnRecv Length = " << Length << std::endl;
 
-		sleep_for(std::chrono::milliseconds(100));
+		// 서버에서 브로드캐스트로 정보를 뿌릴 때 주로 사용된다.
+		ClientPacketHandler::HandlePacket(Buffer, Length);
+		
+		/*sleep_for(std::chrono::milliseconds(100));
 
 		std::shared_ptr<SendBuffer> NewBuffer = std::make_shared<SendBuffer>(0x1000);
 		NewBuffer->CopyData(SendData, sizeof(SendData));
 		Send(NewBuffer);
 
-		return Length;
+		return Length;*/
 	}
 
 	virtual void OnSend(INT Length) {
