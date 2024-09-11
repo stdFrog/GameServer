@@ -88,8 +88,8 @@ BOOL Listener::StartAccept(std::shared_ptr<ServerService> NewService) {
 		IOCPEvent* NewEvent = new IOCPEvent(EventType::ACCEPT);
 		NewEvent->_Owner = shared_from_this();
 		/* 
-			이벤트가 발생한 이후 처리되기까지 Listener객체가 유효해야 하므로
-			이벤트를 소유한 대상이 누구인지 관리하여 Reference Count를 유지한다.
+			현재 리스너 객체는 ServerService->Start() 호출에서 구체화(할당)되었다.
+			이벤트가 리스너 객체를 소유해야 해제되지 않으므로 Reference Count를 유지해야 한다.
 		*/
 		_AcceptEvents.push_back(NewEvent);
 		RegisterAccept(NewEvent);
@@ -114,7 +114,7 @@ void Listener::RegisterAccept(IOCPEvent* Target) {
 		또한, 위 CreateSession에서 세션의 생성과 감시 대상으로 등록하는 작업까지 수행한다.
 	*/
 	Target->Initialize();
-	Target->_Session = NewSession;					// 소켓 정보(원격지 정보)
+	Target->_Session = NewSession;				// 소켓 정보(원격지 정보)
 	
 	DWORD dwRecvBytes = 0;
 	/* 

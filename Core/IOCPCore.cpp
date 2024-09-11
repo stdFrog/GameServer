@@ -65,7 +65,7 @@ BOOL IOCPCore::Dispatch(DWORD dwMilliSeconds) {
 			현재 프로젝트에선 일반 포인터가 아닌 스마트 포인터를 사용하고 있으므로 이러한 분기 처리가 필요치 않다.
 			만약 일반 포인터만으로 서버 프로그램을 만들어야 한다면 난이도가 수직 상승할 것이다.
 		*/
-		NewObject = NewEvent->_Owner;				// 1. Listener, 2.Session
+		NewObject = NewEvent->_Owner;				// 1. Listener, 2.Session(Recv)
 		NewObject->Dispatch(NewEvent, dwTrans);
 	}
 	else {

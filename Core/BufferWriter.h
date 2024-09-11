@@ -49,7 +49,7 @@ template<typename T> BufferWriter& BufferWriter::operator <<(T&& Src) {
 
 		std::move와 비슷한데 이동과 복사 연산을 호출하는 차이 정도만 있다.
 	*/
-	*(reinterpret_cast<DataType*>(&_Buffer[_Position])) = std::forward<DataType>(Src);
+	*reinterpret_cast<DataType*>(&_Buffer[_Position]) = std::forward<DataType>(Src);
 	_Position += sizeof(T);
 	return *this;
 }

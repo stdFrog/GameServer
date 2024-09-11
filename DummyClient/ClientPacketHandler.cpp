@@ -49,7 +49,7 @@ void ClientPacketHandler::Handle_S_TEST(BYTE* Buffer, INT Length) {
 
 	std::cout << "ID : " << ID << "HP : " << HP << "ATT : " << Attack << std::endl;
 
-	std::vector<BufferData>Buffers;
+	std::vector<BufferData> Buffers;
 	USHORT BufferCount;
 	br >> BufferCount;
 

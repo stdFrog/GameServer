@@ -5,7 +5,7 @@ BufferWriter::BufferWriter() {
 
 }
 
-BufferWriter::BufferWriter(BYTE* Buffer, UINT Size, UINT Posiiton) {
+BufferWriter::BufferWriter(BYTE* Buffer, UINT Size, UINT Position) : _Buffer(Buffer), _Size(Size), _Position(Position) {
 
 }
 

@@ -5,7 +5,6 @@
 	이 구조를 조금 더 쉽고 빠르게 만들기 위해 즉, 데이터를 편하게 조립할 수 있도록
 	유틸리티 개념의 클래스를 추가했다.  
 */
-
 class BufferReader
 {
 	BYTE* _Buffer = NULL;
@@ -30,12 +29,12 @@ public:
 	BOOL Read(void* Destination, UINT Length);
 	template<typename T>BOOL Read(void* Destination, UINT Length) { return Read(Destination, sizeof(T)); }
 
-	template<typename T> BufferReader& operator >>(T& Destination);
+	template<typename T> BufferReader& operator>>(T& Destination);
 };
 
 template<typename T>
 inline BufferReader& BufferReader::operator>>(T& Destination) {
-	Destination = *(reinterpret_cast<T*>(&_Buffer[_Position]));
+	Destination = *reinterpret_cast<T*>(&_Buffer[_Position]);
 	_Position += sizeof(T);
 	return *this;
 }

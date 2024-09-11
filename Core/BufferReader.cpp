@@ -5,7 +5,7 @@ BufferReader::BufferReader() {
 
 }
 
-BufferReader::BufferReader(BYTE* Buffer, UINT Size, UINT Position) {
+BufferReader::BufferReader(BYTE* Buffer, UINT Size, UINT Position) : _Buffer(Buffer), _Size(Size), _Position(Position){
 
 }
 

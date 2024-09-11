@@ -122,7 +122,6 @@ void Session::RegisterRecv() {
 
 	/* 
 		서버측 입장에서 통신을 위한 최초의 Recv 콜까지 마친 상태가 된다. 
-		이후 작업자 스레드(IOCPCore)가 
 	*/
 	if (WSARecv(_Socket, &wsabuf, 1, &dwBytes, &Flags, (LPOVERLAPPED)&_RecvEvent, NULL) == SOCKET_ERROR) {
 		INT Error = WSAGetLastError();
@@ -393,7 +392,7 @@ PacketSession::~PacketSession() {
 
 /* 
 	4바이트 크기의 헤더를 먼저 보낸다.
-	다만, 상/하위 2바이트씩 구역을 나누어 두 개의 데이터를 보낸다.
+	다만, 상/하위 2바이트씩 구역을 나누어 두 가지 정보를 보낸다.
 */
 INT PacketSession::OnRecv(BYTE* Buffer, int Length){
 	int ProcessLength = 0;
@@ -405,6 +404,7 @@ INT PacketSession::OnRecv(BYTE* Buffer, int Length){
 		PacketHeader Header = *(reinterpret_cast<PacketHeader*>(&Buffer[ProcessLength]));
 		if (DataSize < Header.Size) { break; }
 
+		/* 온전한 패킷인지 확인한 후 컨텐츠 개발자가 필요한 처리를 하도록 넘긴다. */
 		OnRecvPacket(&Buffer[ProcessLength], Header.Size);
 		
 		ProcessLength += Header.Size;

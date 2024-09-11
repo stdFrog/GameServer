@@ -24,9 +24,9 @@ void ServerPacketHandler::HandlePacket(BYTE* Buffer, int Length) {
 	문제가 발생할 수 있으므로 주의해야 한다.
 */
 std::shared_ptr<SendBuffer> ServerPacketHandler::Make_S_TEST(unsigned long long ID, UINT HP, USHORT Attack, std::vector<BufferData> Buffers) {
-	std::shared_ptr<SendBuffer> Buffer = std::make_shared<SendBuffer>(0x1000);
+	std::shared_ptr<SendBuffer> NewBuffer = std::make_shared<SendBuffer>(0x1000);
 
-	BufferWriter bw(Buffer->Buffer(), Buffer->Capacity());
+	BufferWriter bw(NewBuffer->Buffer(), NewBuffer->Capacity());
 	PacketHeader* Header = bw.Reserve<PacketHeader>();
 
 	bw << ID << HP << Attack;
@@ -39,7 +39,7 @@ std::shared_ptr<SendBuffer> ServerPacketHandler::Make_S_TEST(unsigned long long 
 	Header->Size = bw.WriteSize();
 	Header->ID = S_TEST;
 
-	Buffer->Close(bw.WriteSize());
+	NewBuffer->Close(bw.WriteSize());
 
-	return Buffer;
+	return NewBuffer;
 }
